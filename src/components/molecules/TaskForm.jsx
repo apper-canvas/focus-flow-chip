@@ -9,10 +9,10 @@ import ApperIcon from "@/components/ApperIcon";
 
 const TaskForm = ({ onSubmit, editingTask, onCancel }) => {
   const [formData, setFormData] = useState({
-    title: editingTask?.title || "",
-    description: editingTask?.description || "",
-    dueDate: editingTask?.dueDate || "",
-    priority: editingTask?.priority || "medium"
+title: editingTask?.title || editingTask?.title_c || "",
+    description: editingTask?.description || editingTask?.description_c || "",
+    dueDate: editingTask?.dueDate || editingTask?.due_date_c || "",
+    priority: editingTask?.priority || editingTask?.priority_c || "medium"
   });
 
   const [errors, setErrors] = useState({});
@@ -52,9 +52,10 @@ const TaskForm = ({ onSubmit, editingTask, onCancel }) => {
     }
 
     const taskData = {
-      ...formData,
-      title: formData.title.trim(),
-      description: formData.description.trim()
+title: formData.title.trim(),
+      description: formData.description.trim(),
+      priority: formData.priority,
+      dueDate: formData.dueDate || null
     };
 
     onSubmit(taskData);
