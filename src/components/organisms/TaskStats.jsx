@@ -5,16 +5,14 @@ import ApperIcon from "@/components/ApperIcon";
 const TaskStats = ({ tasks = [] }) => {
   const stats = {
     total: tasks.length,
-    completed: tasks.filter(task => task.completed || task.completed_c).length,
-    active: tasks.filter(task => !(task.completed || task.completed_c)).length,
+    completed: tasks.filter(task => task.completed).length,
+    active: tasks.filter(task => !task.completed).length,
     overdue: tasks.filter(task => {
-      const isCompleted = task.completed || task.completed_c;
-      const dueDate = task.dueDate || task.due_date_c;
-      
-      if (isCompleted || !dueDate) return false;
-      return new Date() > new Date(dueDate);
+      if (task.completed || !task.dueDate) return false;
+      return new Date() > new Date(task.dueDate);
     }).length
   };
+
   const completionRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
 
   const statCards = [

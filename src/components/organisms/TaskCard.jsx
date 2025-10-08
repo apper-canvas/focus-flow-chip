@@ -2,10 +2,10 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { format, isAfter, parseISO } from "date-fns";
 import { toast } from "react-toastify";
-import ApperIcon from "@/components/ApperIcon";
-import Button from "@/components/atoms/Button";
-import Badge from "@/components/atoms/Badge";
 import Checkbox from "@/components/atoms/Checkbox";
+import Badge from "@/components/atoms/Badge";
+import Button from "@/components/atoms/Button";
+import ApperIcon from "@/components/ApperIcon";
 
 const TaskCard = ({ task, onToggleComplete, onEdit, onDelete }) => {
   const [isCompleting, setIsCompleting] = useState(false);
@@ -15,11 +15,10 @@ const TaskCard = ({ task, onToggleComplete, onEdit, onDelete }) => {
     
     // Add a slight delay for animation effect
     setTimeout(() => {
-onToggleComplete(task.Id);
+      onToggleComplete(task.Id);
       setIsCompleting(false);
       
-const isCompleted = task.completed || task.completed_c;
-      if (!isCompleted) {
+      if (!task.completed) {
         toast.success("Task completed! 🎉", {
           position: "top-right",
           autoClose: 2000
@@ -30,7 +29,7 @@ const isCompleted = task.completed || task.completed_c;
 
   const handleDelete = () => {
     if (window.confirm("Are you sure you want to delete this task?")) {
-onDelete(task.Id);
+      onDelete(task.Id);
       toast.success("Task deleted successfully");
     }
   };
@@ -43,13 +42,7 @@ onDelete(task.Id);
     low: { variant: "low", icon: "Minus", color: "text-success" }
   };
 
-const taskPriority = task.priority || task.priority_c || 'medium';
-  const priority = priorityConfig[taskPriority] || priorityConfig.medium;
-  
-  const taskTitle = task.title || task.title_c || '';
-  const taskDescription = task.description || task.description_c || '';
-  const taskCompleted = task.completed || task.completed_c || false;
-  const taskDueDate = task.dueDate || task.due_date_c;
+  const priority = priorityConfig[task.priority] || priorityConfig.medium;
 
   return (
     <motion.div
@@ -62,8 +55,8 @@ const taskPriority = task.priority || task.priority_c || 'medium';
       }}
       exit={{ opacity: 0, x: -20 }}
       whileHover={{ y: -2, shadow: "0 8px 25px rgba(0,0,0,0.15)" }}
-className={`bg-white rounded-xl p-6 shadow-md border transition-all duration-300 ${
-        taskCompleted
+      className={`bg-white rounded-xl p-6 shadow-md border transition-all duration-300 ${
+        task.completed 
           ? "border-success/30 bg-gradient-to-r from-success/5 to-emerald-50" 
           : isOverdue 
             ? "border-error/30 bg-gradient-to-r from-error/5 to-red-50"
@@ -77,23 +70,27 @@ className={`bg-white rounded-xl p-6 shadow-md border transition-all duration-300
             className="mt-1"
           >
             <Checkbox
-checked={taskCompleted}
+              checked={task.completed}
               onChange={handleToggleComplete}
             />
           </motion.div>
           
           <div className="flex-1 min-w-0">
-<h3 className={`text-lg font-semibold mb-2 transition-all duration-200 ${
-              taskCompleted ? "line-through text-gray-500" : "text-gray-900"
+            <h3 className={`text-lg font-semibold mb-2 transition-all duration-200 ${
+              task.completed 
+                ? "text-gray-500 line-through" 
+                : "text-gray-900"
             }`}>
-              {taskTitle}
-</h3>
+              {task.title}
+            </h3>
             
-            {taskDescription && (
-              <p className={`text-sm mb-4 transition-all duration-200 ${
-                taskCompleted ? "line-through text-gray-400" : "text-gray-600"
+            {task.description && (
+              <p className={`text-sm leading-relaxed transition-all duration-200 ${
+                task.completed 
+                  ? "text-gray-400 line-through" 
+                  : "text-gray-600"
               }`}>
-                {taskDescription}
+                {task.description}
               </p>
             )}
           </div>
@@ -102,13 +99,13 @@ checked={taskCompleted}
         <div className="flex items-center gap-3 ml-4">
           <Badge variant={priority.variant} className="shadow-sm">
             <ApperIcon name={priority.icon} size={12} className="mr-1" />
-{taskPriority.charAt(0).toUpperCase() + taskPriority.slice(1)}
+            {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
           </Badge>
           
           <Button
             variant="ghost"
             size="sm"
-onClick={() => onEdit(task)}
+            onClick={() => onEdit(task)}
             className="text-gray-500 hover:text-primary"
           >
             <ApperIcon name="Edit3" size={16} />
@@ -127,7 +124,7 @@ onClick={() => onEdit(task)}
 
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-4">
-{taskDueDate && (
+          {task.dueDate && (
             <div className={`flex items-center gap-2 ${
               isOverdue ? "text-error font-medium" : "text-gray-500"
             }`}>
@@ -137,12 +134,12 @@ onClick={() => onEdit(task)}
               />
               <span>
                 {isOverdue ? "Overdue: " : "Due: "}
-{format(parseISO(taskDueDate), "MMM dd, yyyy")}
+                {format(parseISO(task.dueDate), "MMM dd, yyyy")}
               </span>
             </div>
           )}
           
-<div className="flex items-center gap-2 text-gray-500">
+          <div className="flex items-center gap-2 text-gray-500">
             <ApperIcon name="Clock" size={14} />
             <span>
               Created {format(parseISO(task.createdAt), "MMM dd")}

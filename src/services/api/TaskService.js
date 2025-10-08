@@ -1,384 +1,130 @@
+import taskData from "@/services/mockData/tasks.json";
+
 class TaskService {
   constructor() {
-    this.tableName = 'task_c';
-    this.apperClient = null;
-    this.initializeClient();
+    this.tasks = [...taskData];
+    this.loadFromStorage();
   }
 
-  // Initialize ApperClient
-  initializeClient() {
-    if (typeof window !== 'undefined' && window.ApperSDK) {
-      const { ApperClient } = window.ApperSDK;
-      this.apperClient = new ApperClient({
-        apperProjectId: import.meta.env.VITE_APPER_PROJECT_ID,
-        apperPublicKey: import.meta.env.VITE_APPER_PUBLIC_KEY
-      });
+  // Load tasks from localStorage if available
+  loadFromStorage() {
+    try {
+      const saved = localStorage.getItem("focus-flow-tasks");
+      if (saved) {
+        this.tasks = JSON.parse(saved);
+      }
+    } catch (error) {
+      console.warn("Failed to load tasks from storage:", error);
     }
   }
 
-  // Ensure client is initialized
-  ensureClient() {
-    if (!this.apperClient) {
-      this.initializeClient();
+  // Save tasks to localStorage
+  saveToStorage() {
+    try {
+      localStorage.setItem("focus-flow-tasks", JSON.stringify(this.tasks));
+    } catch (error) {
+      console.warn("Failed to save tasks to storage:", error);
     }
-    return this.apperClient;
   }
 
-  // Map application fields to database fields for create/update
-  mapToDbFields(taskData) {
-    return {
-      // Include only updateable fields based on task_c schema
-      Name: taskData.title || taskData.title_c || '',
-      title_c: taskData.title || taskData.title_c || '',
-      description_c: taskData.description || taskData.description_c || '',
-      completed_c: taskData.completed !== undefined ? taskData.completed : taskData.completed_c,
-      priority_c: taskData.priority || taskData.priority_c || 'medium',
-      due_date_c: taskData.dueDate || taskData.due_date_c || null,
-      completed_at_c: taskData.completedAt || taskData.completed_at_c || null
-    };
-  }
-
-  // Map database response to application format
-  mapFromDbFields(dbTask) {
-    return {
-      Id: dbTask.Id,
-      title: dbTask.title_c || dbTask.Name || '',
-      description: dbTask.description_c || '',
-      completed: dbTask.completed_c || false,
-      priority: dbTask.priority_c || 'medium',
-      dueDate: dbTask.due_date_c || null,
-      completedAt: dbTask.completed_at_c || null,
-      createdAt: dbTask.CreatedOn || new Date().toISOString(),
-      // Keep original database fields for reference
-      title_c: dbTask.title_c,
-      description_c: dbTask.description_c,
-      completed_c: dbTask.completed_c,
-      priority_c: dbTask.priority_c,
-      due_date_c: dbTask.due_date_c,
-      completed_at_c: dbTask.completed_at_c
-    };
+  // Simulate async operation
+  async delay() {
+    return new Promise(resolve => setTimeout(resolve, Math.random() * 300 + 200));
   }
 
   // Get all tasks
   async getAll() {
-    try {
-      const client = this.ensureClient();
-      if (!client) throw new Error('ApperClient not initialized');
-
-      const params = {
-        fields: [
-          {"field": {"Name": "Id"}},
-          {"field": {"Name": "Name"}},
-          {"field": {"Name": "title_c"}},
-          {"field": {"Name": "description_c"}},
-          {"field": {"Name": "completed_c"}},
-          {"field": {"Name": "priority_c"}},
-          {"field": {"Name": "due_date_c"}},
-          {"field": {"Name": "completed_at_c"}},
-          {"field": {"Name": "CreatedOn"}},
-          {"field": {"Name": "Tags"}}
-        ],
-        orderBy: [{"fieldName": "CreatedOn", "sorttype": "DESC"}],
-        pagingInfo: {"limit": 100, "offset": 0}
-      };
-
-      const response = await client.fetchRecords(this.tableName, params);
-      
-      if (!response.success) {
-        console.error('Failed to fetch tasks:', response.message);
-        throw new Error(response.message || 'Failed to fetch tasks');
-      }
-
-      const tasks = (response.data || []).map(task => this.mapFromDbFields(task));
-      return tasks;
-    } catch (error) {
-      console.error("Error fetching tasks:", error?.response?.data?.message || error.message || error);
-      throw error;
-    }
+    await this.delay();
+    return [...this.tasks].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
 
   // Get task by ID
   async getById(id) {
-    try {
-      const client = this.ensureClient();
-      if (!client) throw new Error('ApperClient not initialized');
-
-      const params = {
-        fields: [
-          {"field": {"Name": "Id"}},
-          {"field": {"Name": "Name"}},
-          {"field": {"Name": "title_c"}},
-          {"field": {"Name": "description_c"}},
-          {"field": {"Name": "completed_c"}},
-          {"field": {"Name": "priority_c"}},
-          {"field": {"Name": "due_date_c"}},
-          {"field": {"Name": "completed_at_c"}},
-          {"field": {"Name": "CreatedOn"}},
-          {"field": {"Name": "Tags"}}
-        ]
-      };
-
-      const response = await client.getRecordById(this.tableName, id, params);
-      
-      if (!response.success || !response.data) {
-        throw new Error(`Task with ID ${id} not found`);
-      }
-
-      return this.mapFromDbFields(response.data);
-    } catch (error) {
-      console.error(`Error fetching task ${id}:`, error?.response?.data?.message || error.message || error);
-      throw error;
+    await this.delay();
+    const task = this.tasks.find(t => t.Id === id);
+    if (!task) {
+      throw new Error(`Task with ID ${id} not found`);
     }
+    return { ...task };
   }
 
   // Create new task
   async create(taskData) {
-    try {
-      const client = this.ensureClient();
-      if (!client) throw new Error('ApperClient not initialized');
+    await this.delay();
+    
+    // Find highest existing ID and add 1
+    const maxId = this.tasks.length > 0 ? Math.max(...this.tasks.map(t => t.Id)) : 0;
+    
+    const newTask = {
+      Id: maxId + 1,
+      title: taskData.title,
+      description: taskData.description || "",
+      completed: false,
+      priority: taskData.priority || "medium",
+      dueDate: taskData.dueDate || null,
+      createdAt: new Date().toISOString(),
+      completedAt: null
+    };
 
-      const mappedData = this.mapToDbFields(taskData);
-      
-      const params = {
-        records: [mappedData]
-      };
-
-      const response = await client.createRecord(this.tableName, params);
-      
-      if (!response.success) {
-        console.error('Failed to create task:', response.message);
-        throw new Error(response.message || 'Failed to create task');
-      }
-
-      if (response.results && response.results.length > 0) {
-        const successful = response.results.filter(r => r.success);
-        const failed = response.results.filter(r => !r.success);
-        
-        if (failed.length > 0) {
-          console.error(`Failed to create ${failed.length} tasks:`, JSON.stringify(failed));
-          failed.forEach(record => {
-            if (record.errors) {
-              record.errors.forEach(error => console.error(`${error.fieldLabel || 'Field'}: ${error}`));
-            }
-            if (record.message) console.error(record.message);
-          });
-        }
-        
-        if (successful.length > 0) {
-          return this.mapFromDbFields(successful[0].data);
-        }
-      }
-      
-      throw new Error('No successful task creation');
-    } catch (error) {
-      console.error("Error creating task:", error?.response?.data?.message || error.message || error);
-      throw error;
-    }
+    this.tasks.push(newTask);
+    this.saveToStorage();
+    return { ...newTask };
   }
 
   // Update existing task
   async update(id, updateData) {
-    try {
-      const client = this.ensureClient();
-      if (!client) throw new Error('ApperClient not initialized');
-
-      const mappedData = this.mapToDbFields(updateData);
-      mappedData.Id = id; // Ensure ID is included
-      
-      const params = {
-        records: [mappedData]
-      };
-
-      const response = await client.updateRecord(this.tableName, params);
-      
-      if (!response.success) {
-        console.error('Failed to update task:', response.message);
-        throw new Error(response.message || 'Failed to update task');
-      }
-
-      if (response.results && response.results.length > 0) {
-        const successful = response.results.filter(r => r.success);
-        const failed = response.results.filter(r => !r.success);
-        
-        if (failed.length > 0) {
-          console.error(`Failed to update ${failed.length} tasks:`, JSON.stringify(failed));
-          failed.forEach(record => {
-            if (record.errors) {
-              record.errors.forEach(error => console.error(`${error.fieldLabel || 'Field'}: ${error}`));
-            }
-            if (record.message) console.error(record.message);
-          });
-        }
-        
-        if (successful.length > 0) {
-          return this.mapFromDbFields(successful[0].data);
-        }
-      }
-      
-      throw new Error('No successful task update');
-    } catch (error) {
-      console.error("Error updating task:", error?.response?.data?.message || error.message || error);
-      throw error;
+    await this.delay();
+    
+    const index = this.tasks.findIndex(t => t.Id === id);
+    if (index === -1) {
+      throw new Error(`Task with ID ${id} not found`);
     }
+
+    const updatedTask = {
+      ...this.tasks[index],
+      ...updateData,
+      Id: id // Ensure ID doesn't change
+    };
+
+    this.tasks[index] = updatedTask;
+    this.saveToStorage();
+    return { ...updatedTask };
   }
 
   // Delete task
   async delete(id) {
-    try {
-      const client = this.ensureClient();
-      if (!client) throw new Error('ApperClient not initialized');
-
-      const params = { 
-        RecordIds: [id]
-      };
-
-      const response = await client.deleteRecord(this.tableName, params);
-      
-      if (!response.success) {
-        console.error('Failed to delete task:', response.message);
-        throw new Error(response.message || 'Failed to delete task');
-      }
-
-      if (response.results && response.results.length > 0) {
-        const successful = response.results.filter(r => r.success);
-        const failed = response.results.filter(r => !r.success);
-        
-        if (failed.length > 0) {
-          console.error(`Failed to delete ${failed.length} tasks:`, JSON.stringify(failed));
-          failed.forEach(record => {
-            if (record.message) console.error(record.message);
-          });
-        }
-        
-        return successful.length === 1;
-      }
-      
-      return true;
-    } catch (error) {
-      console.error("Error deleting task:", error?.response?.data?.message || error.message || error);
-      throw error;
+    await this.delay();
+    
+    const index = this.tasks.findIndex(t => t.Id === id);
+    if (index === -1) {
+      throw new Error(`Task with ID ${id} not found`);
     }
+
+    this.tasks.splice(index, 1);
+    this.saveToStorage();
+    return true;
   }
 
   // Get tasks by status
   async getByStatus(completed) {
-    try {
-      const client = this.ensureClient();
-      if (!client) throw new Error('ApperClient not initialized');
-
-      const params = {
-        fields: [
-          {"field": {"Name": "Id"}},
-          {"field": {"Name": "Name"}},
-          {"field": {"Name": "title_c"}},
-          {"field": {"Name": "description_c"}},
-          {"field": {"Name": "completed_c"}},
-          {"field": {"Name": "priority_c"}},
-          {"field": {"Name": "due_date_c"}},
-          {"field": {"Name": "completed_at_c"}},
-          {"field": {"Name": "CreatedOn"}}
-        ],
-        where: [{"FieldName": "completed_c", "Operator": "ExactMatch", "Values": [completed]}],
-        orderBy: [{"fieldName": "CreatedOn", "sorttype": "DESC"}]
-      };
-
-      const response = await client.fetchRecords(this.tableName, params);
-      
-      if (!response.success) {
-        console.error('Failed to fetch tasks by status:', response.message);
-        return [];
-      }
-
-      return (response.data || []).map(task => this.mapFromDbFields(task));
-    } catch (error) {
-      console.error("Error fetching tasks by status:", error?.response?.data?.message || error.message || error);
-      return [];
-    }
+    await this.delay();
+    return this.tasks.filter(task => task.completed === completed);
   }
 
   // Get tasks by priority
   async getByPriority(priority) {
-    try {
-      const client = this.ensureClient();
-      if (!client) throw new Error('ApperClient not initialized');
-
-      const params = {
-        fields: [
-          {"field": {"Name": "Id"}},
-          {"field": {"Name": "Name"}},
-          {"field": {"Name": "title_c"}},
-          {"field": {"Name": "description_c"}},
-          {"field": {"Name": "completed_c"}},
-          {"field": {"Name": "priority_c"}},
-          {"field": {"Name": "due_date_c"}},
-          {"field": {"Name": "completed_at_c"}},
-          {"field": {"Name": "CreatedOn"}}
-        ],
-        where: [{"FieldName": "priority_c", "Operator": "ExactMatch", "Values": [priority]}],
-        orderBy: [{"fieldName": "CreatedOn", "sorttype": "DESC"}]
-      };
-
-      const response = await client.fetchRecords(this.tableName, params);
-      
-      if (!response.success) {
-        console.error('Failed to fetch tasks by priority:', response.message);
-        return [];
-      }
-
-      return (response.data || []).map(task => this.mapFromDbFields(task));
-    } catch (error) {
-      console.error("Error fetching tasks by priority:", error?.response?.data?.message || error.message || error);
-      return [];
-    }
+    await this.delay();
+    return this.tasks.filter(task => task.priority === priority);
   }
 
   // Search tasks
   async search(query) {
-    try {
-      const client = this.ensureClient();
-      if (!client) throw new Error('ApperClient not initialized');
-
-      const searchTerm = query.toLowerCase();
-      
-      const params = {
-        fields: [
-          {"field": {"Name": "Id"}},
-          {"field": {"Name": "Name"}},
-          {"field": {"Name": "title_c"}},
-          {"field": {"Name": "description_c"}},
-          {"field": {"Name": "completed_c"}},
-          {"field": {"Name": "priority_c"}},
-          {"field": {"Name": "due_date_c"}},
-          {"field": {"Name": "completed_at_c"}},
-          {"field": {"Name": "CreatedOn"}}
-        ],
-        whereGroups: [{
-          "operator": "OR",
-          "subGroups": [
-            {
-              "conditions": [
-                {"fieldName": "title_c", "operator": "Contains", "subOperator": "", "values": [searchTerm]},
-                {"fieldName": "description_c", "operator": "Contains", "subOperator": "", "values": [searchTerm]}
-              ],
-              "operator": "OR"
-            }
-          ]
-        }],
-        orderBy: [{"fieldName": "CreatedOn", "sorttype": "DESC"}]
-      };
-
-      const response = await client.fetchRecords(this.tableName, params);
-      
-      if (!response.success) {
-        console.error('Failed to search tasks:', response.message);
-        return [];
-      }
-
-      return (response.data || []).map(task => this.mapFromDbFields(task));
-    } catch (error) {
-      console.error("Error searching tasks:", error?.response?.data?.message || error.message || error);
-      return [];
-    }
+    await this.delay();
+    const searchTerm = query.toLowerCase();
+    return this.tasks.filter(task =>
+      task.title.toLowerCase().includes(searchTerm) ||
+      task.description.toLowerCase().includes(searchTerm)
+    );
   }
 }
 
